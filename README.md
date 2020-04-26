@@ -1,11 +1,14 @@
 # Person-Tracking-Tello-Drone
 Python script for using a Tello drone to track and follow a person
+###FlowChart
 
-```mermaid
-graph LR
-A[Square Rect] -- Link text --> B((Circle))
-A --> C(Round Rect)
-B --> D{Rhombus}
-C --> D
-A --> E{Rhombus}
+```flow
+st=>start: Login
+op=>operation: Login operation
+cond=>condition: Successful Yes or No?
+e=>end: To admin
+
+st->op->cond
+cond(yes)->e
+cond(no)->op
 ```
