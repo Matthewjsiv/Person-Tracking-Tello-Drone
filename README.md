@@ -5,6 +5,24 @@ Python script for using a Tello drone to track and follow a person. The Tello se
 
 ## video
 
-## Requirements
+## Requirements/Setup
 ### [TelloPy](https://github.com/hanyazou/TelloPy):
-Allows you to easily send commands and receive video from the drone.
+Allows you to easily send commands and receive video from the drone. Can be easily installed running `pip install tellopy`.
+
+### [OpenCV-Python](https://pypi.org/project/opencv-python/):
+If you receive an error related to Qt binaries that prevents the script from running, try installing the headless version instead with `pip install opencv-python-headless`.
+
+### [Simple-PID](https://github.com/m-lundberg/simple-pid):
+Basic PID controller - `pip install simple-pid`.
+
+### [Tensorflow](https://www.tensorflow.org/install/pip):
+This code works with Tensorflow 1.15. It might work with Tensorflow 2 but you would need to make some modifications both in my script and the posenet python code.
+
+### [Posenet-Python](https://github.com/rwightman/posenet-python):
+For pose detection, I use this python port (made by [rwightman](https://github.com/rwightman) of the Tensorflow.js Posenet models created by Google. The models and code are already included here so it should work as long as you have Tensorflow set up properly.
+
+### Other:
+There are a few other packages you might need to install if you don't have them already, such as keyboard, pygame, and av.
+
+## Usage
+
