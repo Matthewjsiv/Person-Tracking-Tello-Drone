@@ -5,3 +5,6 @@ Python script for using a Tello drone to track and follow a person. The Tello se
 
 ## video
 
+## Requirements
+### [TelloPy](https://github.com/hanyazou/TelloPy):
+Allows you to easily send commands and receive video from the drone.
