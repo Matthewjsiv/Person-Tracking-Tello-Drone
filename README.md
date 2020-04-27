@@ -25,4 +25,17 @@ For pose detection, I use this python port (made by [rwightman](https://github.c
 There are a few other packages you might need to install if you don't have them already, such as keyboard, pygame, and av.
 
 ## Usage
+To start the script, run `track_person.py` with admin privileges. The automatic control is on from the start, but you can toggle it as well as control the drone manually using the keyboard controls below:
+* **T** - toggle automatic control
+* **Space** - take off (it won't take off automatically)
+* **L** - land
+* **Q** - rotate counter clockwise
+* **E** - rotate clockwise
+* **D** - move right
+* **A** - move left
+* **W** - move forward
+* **S** - move backward
+* **R** - reset commands (hover/attempt to stay still)
+
+
 
