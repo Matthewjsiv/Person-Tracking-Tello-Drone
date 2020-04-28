@@ -4,11 +4,7 @@ Python script for using a Tello drone to track and follow a person. The Tello se
 **The code currently works decently (as shown below) but the PID definitely can still be refined. I am also working on adding more tracking behaviors (for example, detecting when you turn and in what direction so that the drone can match left/right/movement better).**
 
 ## Video Example
-Drone Perspective:
-https://drive.google.com/open?id=1JiWFJSUdzr93jsB2SA9DuDW1ywysX8Mu
-
-Third-person Perspective:
-https://drive.google.com/open?id=1iMkjXiMSFaL2pVkP_OS8VQFAJujfCuFI
+https://drive.google.com/open?id=1hOpBfh_ndfvcmPzP6HPN33_v3nrxgVW9
 
 ## Requirements/Setup
 ### [TelloPy](https://github.com/hanyazou/TelloPy):
