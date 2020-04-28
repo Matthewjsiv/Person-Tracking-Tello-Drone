@@ -3,9 +3,12 @@ Python script for using a Tello drone to track and follow a person. The Tello se
 
 **The code currently works decently (as shown below) but the PID definitely can still be refined. I am also working on adding more tracking behaviors (for example, detecting when you turn and in what direction so that the drone can match left/right/movement better).**
 
-## video
-Will be uploaded today if you're seeing this
+## Video Example
+Drone Perspective:
 https://drive.google.com/open?id=1JiWFJSUdzr93jsB2SA9DuDW1ywysX8Mu
+
+Third-person Perspective:
+https://drive.google.com/open?id=1iMkjXiMSFaL2pVkP_OS8VQFAJujfCuFI
 
 ## Requirements/Setup
 ### [TelloPy](https://github.com/hanyazou/TelloPy):
@@ -41,5 +44,4 @@ To start the script, run `track_person.py` with admin privileges. The automatic 
 
 ## How it works:
 There are two main processes happening: receiving and processing video input, and sending commands back to the drone. The input is processed to predict the key points of your body, which are used to calculate the error passed into the PID controllers. The location of your nose is used to calculate the error for yaw and vertical movement, and the distance between your shoulders and hips are used to calculate the error for forwards/backwards movement. Commands are then sent back to the drone based on the PID outputs.
-Figure will be uploaded today if you're seeing this.
 
