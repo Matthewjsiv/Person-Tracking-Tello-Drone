@@ -12,7 +12,7 @@ https://drive.google.com/open?id=1hOpBfh_ndfvcmPzP6HPN33_v3nrxgVW9
 Allows you to easily send commands and receive video from the drone. Can be easily installed running `pip install tellopy`.
 
 ### [OpenCV-Python](https://pypi.org/project/opencv-python/):
-If you receive an error related to Qt binaries that prevents the script from running, try installing the headless version instead with `pip install opencv-python-headless`.
+`pip install opencv-contrib-python` If you receive an error related to Qt binaries that prevents the script from running, try installing the headless version instead with `pip install opencv-contrib-python-headless`. If you are still getting errors, also try the main version instead of contrib.
 
 ### [Simple-PID](https://github.com/m-lundberg/simple-pid):
 Basic PID controller - `pip install simple-pid`.
