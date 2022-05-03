@@ -123,6 +123,9 @@ def handler(event, sender, data, **args):
         print('event="%s" data=%s' % (event.getname(), str(data)))
 
 def main():
+    with tf.Session() as sess:
+        model_cfg, model_outputs = posenet.load_model(args.model, sess)
+        output_stride = model_cfg['output_stride']
     global drone
     global drone_cc
     global drone_ud
