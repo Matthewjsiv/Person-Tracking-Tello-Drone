@@ -1,0 +1,3 @@
+[submodule "posenet"]
+	path = posenet
+	url = https://github.com/rwightman/posenet-pytorch.git
