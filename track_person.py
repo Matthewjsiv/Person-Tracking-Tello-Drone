@@ -9,10 +9,11 @@ import av
 import threading
 import traceback
 from simple_pid import PID
-import tensorflow as tf
+# import tensorflow as tf
+import torch
 import argparse
 
-import posenet
+import posenet.posenet as posenet
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--model', type=int, default=101)
@@ -141,127 +142,141 @@ def main():
     video = cv2.VideoWriter('test_out.mp4',-1,1,(320,240))
     # drone.subscribe(drone.EVENT_VIDEO_FRAME,handler)
     print("Start Running")
-    with tf.Session() as sess:
-        model_cfg, model_outputs = posenet.load_model(args.model, sess)
-        output_stride = model_cfg['output_stride']
+    model = posenet.load_model(args.model)
+    model = model.cuda()
+    output_stride = model.output_stride
 
-        try:
-            # threading.Thread(target=recv_thread).start()
-            threading.Thread(target=controller_thread).start()
-            container = av.open(drone.get_video_stream())
-            frame_count = 0
-            while not shutdown:
-                for frame in container.decode(video=0):
-                    frame_count = frame_count + 1
-                    # skip first 300 frames
-                    if frame_count < 300:
-                        continue
-                    if frame_count %4 == 0:
-                        im = numpy.array(frame.to_image())
-                        im = cv2.resize(im, (320,240)) #resize frame
-                        image = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
-                        #image = cv2.cvtColor(numpy.array(frame.to_image()), cv2.COLOR_RGB2BGR)
-                        input_image, display_image, output_scale = posenet.process_input(
-                            image, scale_factor=args.scale_factor, output_stride=output_stride)
+    try:
+        # threading.Thread(target=recv_thread).start()
+        threading.Thread(target=controller_thread).start()
+        container = av.open(drone.get_video_stream())
+        frame_count = 0
+        while not shutdown:
+            for frame in container.decode(video=0):
+                frame_count = frame_count + 1
+                # skip first 300 frames
+                if frame_count < 300:
+                    continue
+                if frame_count %4 == 0:
+                    im = numpy.array(frame.to_image())
+                    im = cv2.resize(im, (320,240)) #resize frame
+                    image = cv2.cvtColor(im, cv2.COLOR_RGB2BGR)
+                    #image = cv2.cvtColor(numpy.array(frame.to_image()), cv2.COLOR_RGB2BGR)
+                    # input_image, display_image, output_scale = posenet.process_input(
+                    #     image, scale_factor=args.scale_factor, output_stride=output_stride)
 
-                        heatmaps_result, offsets_result, displacement_fwd_result, displacement_bwd_result = sess.run(
-                            model_outputs,
-                            feed_dict={'image:0': input_image}
-                        )
+                    input_image, display_image, output_scale = posenet._process_input(
+                        image, scale_factor=args.scale_factor, output_stride=output_stride)
 
-                        pose_scores, keypoint_scores, keypoint_coords = posenet.decode_multi.decode_multiple_poses(
-                            heatmaps_result.squeeze(axis=0),
-                            offsets_result.squeeze(axis=0),
-                            displacement_fwd_result.squeeze(axis=0),
-                            displacement_bwd_result.squeeze(axis=0),
+                    # heatmaps_result, offsets_result, displacement_fwd_result, displacement_bwd_result = sess.run(
+                    #     model_outputs,
+                    #     feed_dict={'image:0': input_image}
+                    # )
+                    with torch.no_grad():
+                        input_image = torch.Tensor(input_image).cuda()
+                        heatmaps_result, offsets_result, displacement_fwd_result, displacement_bwd_result = model(input_image)
+
+                        pose_scores, keypoint_scores, keypoint_coords = posenet.decode_multiple_poses(
+                            heatmaps_result.squeeze(0),
+                            offsets_result.squeeze(0),
+                            displacement_fwd_result.squeeze(0),
+                            displacement_bwd_result.squeeze(0),
                             output_stride=output_stride,
-                            max_pose_detections=10,
+                            max_pose_detections=1,
                             min_pose_score=0.15)
+                    # pose_scores, keypoint_scores, keypoint_coords = posenet.decode_multi.decode_multiple_poses(
+                    #     heatmaps_result.squeeze(axis=0),
+                    #     offsets_result.squeeze(axis=0),
+                    #     displacement_fwd_result.squeeze(axis=0),
+                    #     displacement_bwd_result.squeeze(axis=0),
+                    #     output_stride=output_stride,
+                    #     max_pose_detections=10,
+                    #     min_pose_score=0.15)
 
-                        keypoint_coords *= output_scale
+                    keypoint_coords *= output_scale
 
-                        # TODO this isn't particularly fast, use GL for drawing and display someday...
-                        overlay_image = posenet.draw_skel_and_kp(
-                            display_image, pose_scores, keypoint_scores, keypoint_coords,
-                            min_pose_score=0.15, min_part_score=0.1)
+                    # TODO this isn't particularly fast, use GL for drawing and display someday...
+                    overlay_image = posenet.draw_skel_and_kp(
+                        display_image, pose_scores, keypoint_scores, keypoint_coords,
+                        min_pose_score=0.15, min_part_score=0.1)
 
 
 
-                        centerx = int(overlay_image.shape[1]/2)
-                        centery = int(overlay_image.shape[0]/2)
-                        nosex = int(keypoint_coords[0,0,1])
-                        nosey = int(keypoint_coords[0,0,0])
-                        ctrl_out_cc = 0
-                        ctrl_out_ud = 0
+                    centerx = int(overlay_image.shape[1]/2)
+                    centery = int(overlay_image.shape[0]/2)
+                    nosex = int(keypoint_coords[0,0,1])
+                    nosey = int(keypoint_coords[0,0,0])
+                    ctrl_out_cc = 0
+                    ctrl_out_ud = 0
 
-                        #overlay_image = cv2.putText(overlay_image, str(nosey), (120,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
-                        errorx = 0
-                        errory = 0
-                        if keypoint_scores[0,0] > .04:
-                            overlay_image = cv2.line(overlay_image, (centerx,centery - 10), (nosex, nosey), (255, 255, 0), 2)
-                            errorx = nosex - centerx
-                            errory = nosey - centery - 10
-                            if abs(errorx) > 20:
-                                ctrl_out_cc = pid_cc(errorx)
-                                drone_cc = ctrl_out_cc
-                            else:
-                                drone_cc = 0
-                            if abs(errory) > 16:
-                                ctrl_out_ud = pid_ud(errory)
-                                drone_ud = ctrl_out_ud
-                            else:
-                                drone_ud = 0
-
-                            #out_img = cv2.putText(out_img, str(keypoint_scores[ii,kpoint]), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (255,255,45), 2)
+                    #overlay_image = cv2.putText(overlay_image, str(nosey), (120,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
+                    errorx = 0
+                    errory = 0
+                    if keypoint_scores[0,0] > .04:
+                        overlay_image = cv2.line(overlay_image, (centerx,centery - 10), (nosex, nosey), (255, 255, 0), 2)
+                        errorx = nosex - centerx
+                        errory = nosey - centery - 10
+                        if abs(errorx) > 20:
+                            ctrl_out_cc = pid_cc(errorx)
+                            drone_cc = ctrl_out_cc
                         else:
-                            #reset pid
                             drone_cc = 0
-                            drone_ud = 0
-                            pid_cc.reset()
-                            pid_ud.reset()
-
-                        leftSholy = int(keypoint_coords[0,5,0])
-                        rightSholy = int(keypoint_coords[0,6,0])
-                        leftHipy = int(keypoint_coords[0,11,0])
-                        rightHipy = int(keypoint_coords[0,12,0])
-                        meanHeight = ((rightHipy - rightSholy) + (leftHipy - leftSholy))/2 #technically arbitrary
-                        desiredHeight = 100
-                        ctrl_out_fb = 0
-
-                        errorFB = 0
-                        if keypoint_scores[0,5] > .04 and keypoint_scores[0,6] > .04 and keypoint_scores[0,11] > .04 and keypoint_scores[0,12] > .04:
-                            errorFB = meanHeight - desiredHeight
-                            #error can be within +/- 15 without caring
-                            if abs(errorFB) > 15:
-                                ctrl_out_fb = pid_cc(errorFB)
-                                drone_fb = ctrl_out_fb
-                            else:
-                                drone_fb = 0
-                            #out_img = cv2.putText(out_img, str(keypoint_scores[ii,kpoint]), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (255,255,45), 2)
+                        if abs(errory) > 16:
+                            ctrl_out_ud = pid_ud(errory)
+                            drone_ud = ctrl_out_ud
                         else:
-                            #reset pid
+                            drone_ud = 0
+
+                        #out_img = cv2.putText(out_img, str(keypoint_scores[ii,kpoint]), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (255,255,45), 2)
+                    else:
+                        #reset pid
+                        drone_cc = 0
+                        drone_ud = 0
+                        pid_cc.reset()
+                        pid_ud.reset()
+
+                    leftSholy = int(keypoint_coords[0,5,0])
+                    rightSholy = int(keypoint_coords[0,6,0])
+                    leftHipy = int(keypoint_coords[0,11,0])
+                    rightHipy = int(keypoint_coords[0,12,0])
+                    meanHeight = ((rightHipy - rightSholy) + (leftHipy - leftSholy))/2 #technically arbitrary
+                    desiredHeight = 100
+                    ctrl_out_fb = 0
+
+                    errorFB = 0
+                    if keypoint_scores[0,5] > .04 and keypoint_scores[0,6] > .04 and keypoint_scores[0,11] > .04 and keypoint_scores[0,12] > .04:
+                        errorFB = meanHeight - desiredHeight
+                        #error can be within +/- 15 without caring
+                        if abs(errorFB) > 15:
+                            ctrl_out_fb = pid_cc(errorFB)
+                            drone_fb = ctrl_out_fb
+                        else:
                             drone_fb = 0
-                            pid_fb.reset()
+                        #out_img = cv2.putText(out_img, str(keypoint_scores[ii,kpoint]), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (255,255,45), 2)
+                    else:
+                        #reset pid
+                        drone_fb = 0
+                        pid_fb.reset()
 
-                        #don't let the hips lie
-                        # if keypoint_scores[0,11] < .04 and keypoint_scores[0,12] < .04:
-                        #     drone_fb = -20
-                        #     drone_ud = -20
+                    #don't let the hips lie
+                    # if keypoint_scores[0,11] < .04 and keypoint_scores[0,12] < .04:
+                    #     drone_fb = -20
+                    #     drone_ud = -20
 
-                        #overlay_image = cv2.putText(overlay_image, str(ctrl_out_fb), (30,110), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
-                        # overlay_image = cv2.putText(overlay_image, str(ctrl_out_ud), (30,30), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
-                        #overlay_image = cv2.putText(overlay_image, str(errory), (30,70), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
-                        cv2.imshow('posenet', overlay_image)
-                        video.write(overlay_image)
-                        #cv2.imshow('Original', image)
-                        #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
-                        cv2.waitKey(1)
-        except KeyboardInterrupt as e:
-            print(e)
-        except Exception as e:
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            traceback.print_exception(exc_type, exc_value, exc_traceback)
-            print(e)
+                    #overlay_image = cv2.putText(overlay_image, str(ctrl_out_fb), (30,110), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
+                    # overlay_image = cv2.putText(overlay_image, str(ctrl_out_ud), (30,30), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
+                    #overlay_image = cv2.putText(overlay_image, str(errory), (30,70), cv2.FONT_HERSHEY_SIMPLEX ,   1, (55,255,45), 2)
+                    cv2.imshow('posenet', overlay_image)
+                    video.write(overlay_image)
+                    #cv2.imshow('Original', image)
+                    #cv2.imshow('Canny', cv2.Canny(image, 100, 200))
+                    cv2.waitKey(1)
+    except KeyboardInterrupt as e:
+        print(e)
+    except Exception as e:
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
+        print(e)
 
     cv2.destroyAllWindows()
     video.release()
