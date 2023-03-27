@@ -248,7 +248,7 @@ def main():
                         errorFB = meanHeight - desiredHeight
                         #error can be within +/- 15 without caring
                         if abs(errorFB) > 15:
-                            ctrl_out_fb = pid_cc(errorFB)
+                            ctrl_out_fb = pid_fb(errorFB)
                             drone_fb = ctrl_out_fb
                         else:
                             drone_fb = 0
