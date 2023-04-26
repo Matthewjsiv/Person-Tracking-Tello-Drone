@@ -191,7 +191,7 @@ def main():
     pid_ud = PID(0.8,0.00,0.0,setpoint=0,output_limits=(-80,80))
     pid_fb = PID(0.75,0.0000,0.0,setpoint=0,output_limits=(-50,50))
 
-    video = cv2.VideoWriter('test_out.mp4',-1,1,(320,240))
+    video = cv2.VideoWriter('test_out.mp4',-1,8,(320,240))
     # drone.subscribe(drone.EVENT_VIDEO_FRAME,handler)
     print("Start Running")
     model = posenet.load_model(args.model)
@@ -247,7 +247,7 @@ def main():
 
                     keypoint_coords *= output_scale
 
-                    if keypoint_scores[0,0] > .04:
+                    if keypoint_scores[0,0] > .3:
                         centerx = int(display_image.shape[1]/2)
                         centery = int(display_image.shape[0]/2)
                         nosex = int(keypoint_coords[0,0,1])
@@ -282,12 +282,13 @@ def main():
                     errorx = 0
                     errory = 0
                     print('---------------------------------------', keypoint_scores[0,0])
-                    if keypoint_scores[0,0] > .04:
+                    if keypoint_scores[0,0] > .3:
                         TARGET_STATUS = 'tracking'
                         PREV_PREDICT_TIME = time.perf_counter()
-                        overlay_image = cv2.line(overlay_image, (centerx,centery - 20), (nosex, nosey), (255, 255, 0), 2)
+                        overlay_image = cv2.line(overlay_image, (centerx,centery-20), (nosex, nosey), (255, 255, 0), 2)
                         errorx = nosex - centerx
-                        errory = nosey - centery - 20
+                        errory = nosey - centery + 20
+                        # print('++++++++++++++++++++++++++++++++++++++++++++++', errory)
                         if abs(errorx) > 5:
                             ctrl_out_cc = pid_cc(errorx)
                             drone_cc = ctrl_out_cc
@@ -296,6 +297,7 @@ def main():
                         if abs(errory) > 8:
                             ctrl_out_ud = pid_ud(errory)
                             drone_ud = ctrl_out_ud
+                            # print('++++++++++++++++++++++++++++++++++++++++++++++', drone_ud)
                         else:
                             drone_ud = 0
 
@@ -347,13 +349,14 @@ def main():
                     leftHipy = int(keypoint_coords[0,11,0])
                     rightHipy = int(keypoint_coords[0,12,0])
                     meanHeight = ((rightHipy - rightSholy) + (leftHipy - leftSholy))/2 #technically arbitrary
-                    desiredHeight = 70
+                    desiredHeight = 90
                     ctrl_out_fb = 0
 
                     errorFB = 0
-                    if keypoint_scores[0,5] > .04 and keypoint_scores[0,6] > .04 and keypoint_scores[0,11] > .04 and keypoint_scores[0,12] > .04:
+                    if keypoint_scores[0,5] > .4 and keypoint_scores[0,6] > .4 and keypoint_scores[0,11] > .4 and keypoint_scores[0,12] > .4:
                         errorFB = meanHeight - desiredHeight
                         #error can be within +/- 15 without caring
+                        print('++++++++++++++++++++++++++++++++', meanHeight)
                         if abs(errorFB) > 15:
                             ctrl_out_fb = pid_fb(errorFB)
                             drone_fb = ctrl_out_fb
@@ -362,7 +365,7 @@ def main():
                         #out_img = cv2.putText(out_img, str(keypoint_scores[ii,kpoint]), (50,50), cv2.FONT_HERSHEY_SIMPLEX ,   1, (255,255,45), 2)
                     else:
                         #reset pid
-                        if keypoint_scores[0,0] > .04 and keypoint_scores[0,11] < .04 and keypoint_scores[0,12] < .04:
+                        if keypoint_scores[0,0] > .3 and keypoint_scores[0,11] < .4 and keypoint_scores[0,12] < .4:
                             drone_fb = -40
                             drone_ud = -40
                         else:
